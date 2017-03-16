@@ -10,8 +10,27 @@ snake   dw 0000h
 tick    dw 0             ;счетчик, если змейка съела больше 5, то игра усложняется
 points_num dw 0
 points   db 10 dup('?')
+counter db 0
 .stack 100h
 .code
+
+delay proc 
+    push ax             
+    push bx
+    push cx
+    mov ah,0            ;номер функции считывания часов, в cx, dx = счетчик тиков с момента сброса
+    int 1Ah             ;прерывание BIOS для работы с часами
+    add dx, 3           ;в секунда 18 тактов, dx - младшая часть значения
+    mov bx,dx           
+repeat:   
+    int 1Ah             ;снова считываем время
+    cmp dx,bx           ;ждем 3 такта
+    jl repeat
+    pop cx              
+    pop bx
+    pop ax
+    ret
+delay endp    
  
 itos proc                        ;input: AX is number, output: SI is string with number
     push cx
@@ -124,7 +143,7 @@ good_num2:
     mov ax,0800h      ;Читает символ в текущей позиции курсора, al - прочитанный символ(входные: bh - номер видио страницы)
     int 10h 
     cmp al, 20h
-    jg generate
+    jne generate
     mov ax,0200h      ;Функция вывода символа на экран
     mov dl,0024h      ;Выоводимый символ
     int 21h   
@@ -142,12 +161,10 @@ push ax
 push bx
 push cx
 push dx
-mov cx, 5 
+mov counter, 0 
 generate:             
     mov ah, 0         ;Номер функции считывания часов, в сх, dx = счетчик тиков с момента сброса
-    push cx
-    int 1Ah           ;Перрывание BIOS для работы с часами 
-    pop cx 
+    int 1Ah           ;Перрывание BIOS для работы с часами  
     add dh, dl
     add dl, dh
 too_big_x:
@@ -164,11 +181,13 @@ good_num:
     mov ax,0800h      ;Читает символ в текущей позиции курсора, al - прочитанный символ(входные: bh - номер видио страницы)
     int 10h 
     cmp al, 20h
-    jg generate
+    jne generate
     mov ax,0200h      ;Функция вывода символа на экран
     mov dl,0040h      ;Выоводимый символ
     int 21h 
-loop generate   
+inc counter
+cmp counter, 5
+jl generate   
 pop dx
     mov ax,0200h
     int 10h              ;Возвращаем курсор на место
@@ -187,7 +206,6 @@ game_over proc
     jl exit
     cmp dh,19h
     je exit
-    
     cmp al,2Ah          ;Проверяем не съела ли змейка сама себя
     je exit             
     cmp al,40h          ;Проверяем не наткнулась ли змейка на препядствие
@@ -219,6 +237,7 @@ start:
     call add_food    
     call add_barrier
 main:                   ;Основоной цикл
+    call delay
     call show_points      
     call key_press
     xor bh, bh
@@ -242,8 +261,7 @@ nex:
     mov dl, 002Ah            ;Символ "*"
     int 21h                 ;Вывод символа '*'(сдвигаем голову на 1 символ вперед)
     cmp dh, 24h              ;Проверка на то, был ли символ перед головй змеи едой. (Съела ли змейка еду)
-    jne next               
-    call add_barrier  
+    jne next                 
     push cx                 ;Запоминаем СХ
     mov cx,[tick]
     inc cx                  ;Увеличивем размер змейки
@@ -257,9 +275,10 @@ nex:
     mov dl, 0040h            
     int 21h                 ;Выводим символ "@" - символ препядствия
 exl:mov [tick],cx           ;Изменяем счетчик еды(Если СХ больше 5, то он обнуляется в строку 149)
-    pop cx
+    pop cx  
     add points_num, 1                  
-    call add_food
+    call add_food 
+    call add_barrier 
     jmp main
 next:
     mov ax,0200h            
