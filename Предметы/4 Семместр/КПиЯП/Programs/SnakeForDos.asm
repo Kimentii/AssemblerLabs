@@ -14,13 +14,13 @@ counter db 0
 .stack 100h
 .code
 
-delay proc 
+delay proc
     push ax             
     push bx
     push cx
     mov ah,0            ;номер функции считывания часов, в cx, dx = счетчик тиков с момента сброса
     int 1Ah             ;прерывание BIOS для работы с часами
-    add dx, 1           ;в секунда 18 тактов, dx - младшая часть значения
+    add dx, 3           ;в секунда 18 тактов, dx - младшая часть значения
     mov bx,dx           
 repeat:   
     int 1Ah             ;снова считываем время
@@ -95,7 +95,7 @@ key_press proc           ;Обработка нажатия клавиши и присваивания значения СХ, 
     int 16h              ;al - аски код символа, ah - расширенный код аски.
     cmp ah, 50h          ;Была ли нажата клавиша вниз
     jne up
-    cmp cx,0FF00h        ;Если была нажата, то проверка, не двигатеся ли змейка вверх
+    cmp cx, 0FF00h       ;Если была нажата, то проверка, не двигатеся ли змейка вверх
     je en                
     mov cx,0100h
     jmp en
@@ -118,43 +118,49 @@ en:
     ret
 key_press endp           
 
-add_food proc         ;Размещает еду на игровом поле
-push ax
-push bx
-push cx
-push dx             
-    mov ah,0          ;Номер функции считывания часов, в сх, dx = счетчик тиков с момента сброса
-    push cx
-    int 1Ah           ;Перрывание BIOS для работы с часами 
-    pop cx 
-    add dh, dl
-    add dl, dh
-too_big_x2:
-    shr dh, 1
-    cmp dh, 18h
-    jge too_big_x2
-too_big_y2:
-    shr dl, 1
-    cmp dl, 50h
-    jge too_big_y2 
-good_num2:
-    mov ax,0200h      ;Номер функция установка курсора, курсор невидемый
-    int 10h
-    mov ax,0800h      ;Читает символ в текущей позиции курсора, al - прочитанный символ(входные: bh - номер видио страницы)
-    int 10h 
-    cmp al, 20h
-    jne generate
-    mov ax,0200h      ;Функция вывода символа на экран
-    mov dl,0024h      ;Выоводимый символ
-    int 21h   
-pop dx
-    mov ax,0200h
-    int 10h              ;Возвращаем курсор на место
-pop cx
-pop bx
-pop ax
-    ret
-add_food endp            
+;************************
+; SPAWN_FOOD is spawning;
+; food to game field in ;
+; random order.         ;
+;************************
+
+add_food proc         
+    
+        push    ax                          ; Saving AX register
+        push    bx                          ; Saving BX register
+        push    cx                          ; Saving CX register
+        push    dx                          ; Saving DX register   
+generate:
+        mov ah, 2ch
+        int 21h
+big_x:  
+        shr dh, 1
+        cmp dh, 25d
+        jge big_x
+big_y:
+        shr dl, 1
+        cmp dl, 50h
+        jge big_y
+             
+        mov ah, 02h
+        int 10h
+        
+        mov ah, 08h
+        int 10h
+        cmp al, ' '
+        jne generate
+        
+        mov ah, 02h
+        mov dl, '$'
+        int 21h
+        
+        pop     dx                                    
+        pop     cx                          ; Getting CX
+        pop     bx                          ; Getting BX
+        pop     ax                          ; Getting AX
+        ret                                 ; Return
+        
+add_food endp                    
 
 add_barrier proc
 push ax
@@ -162,32 +168,32 @@ push bx
 push cx
 push dx
 mov counter, 0 
-generate:             
-    mov ah, 0         ;Номер функции считывания часов, в сх, dx = счетчик тиков с момента сброса
-    int 1Ah           ;Перрывание BIOS для работы с часами  
-    add dh, dl
-    add dl, dh
-too_big_x:
-    shr dh, 1
-    cmp dh, 18h
-    jge too_big_x
-too_big_y:
-    shr dl, 1
-    cmp dl, 50h
-    jge too_big_y 
-good_num:
-    mov ax,0200h      ;Номер функция установка курсора
-    int 10h
-    mov ax,0800h      ;Читает символ в текущей позиции курсора, al - прочитанный символ(входные: bh - номер видио страницы)
-    int 10h 
-    cmp al, 20h
-    jne generate
-    mov ax,0200h      ;Функция вывода символа на экран
-    mov dl,0040h      ;Выоводимый символ
-    int 21h 
+generate2:             
+        mov ah, 2ch
+        int 21h
+big_x2:  
+        shr dh, 1
+        cmp dh, 25d
+        jge big_x2
+big_y2:
+        shr dl, 1
+        cmp dl, 50h
+        jge big_y2
+             
+        mov ah, 02h
+        int 10h
+        
+        mov ah, 08h
+        int 10h
+        cmp al, ' '
+        jne generate2
+        
+        mov ah, 02h
+        mov dl, '@'
+        int 21h 
 inc counter
 cmp counter, 5
-jl generate   
+jl generate2   
 pop dx
     mov ax,0200h
     int 10h              ;Возвращаем курсор на место

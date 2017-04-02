@@ -51,7 +51,7 @@ cicleCB:
     ret
 clear_buf endp 
 
-open_file proc                         ;INPUT:    
+open_file proc                         ;INPUT: dx is name of file   
     push ax
     push dx
     mov ah, 3Dh 
@@ -78,10 +78,7 @@ read_data:
     mov ah, 3Fh
     int 21h	
     jc read_error
-    ;mov cx, ax 
-    ;jcxz end_read
     jmp end_read
-    ;jmp short read_data
 read_error:
     call show_error 
 end_read:
@@ -160,7 +157,7 @@ ret
 show_error endp 
    
    
-size_of_line_p proc
+size_of_line_p proc       
     push si 
     mov size_of_line, 0
 new_symbol:
@@ -221,7 +218,6 @@ next_task:
     xor cx, cx
     mov dx, ax
     neg dx
-    ;dec dx
     mov ah, 42h
     mov al, 01h
     int 21h
@@ -242,11 +238,7 @@ start:
     mov ax, @data
     mov ds, ax  
     call get_name
-    mov dx, offset my_file
-    ;call open_file     
-    ;call read_file 
-    ;close_file 
-    ;output buffer 
+    mov dx, offset my_file 
     call open_file
     call main
     close_file
